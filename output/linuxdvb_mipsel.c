@@ -55,8 +55,18 @@
 #define cERR_LINUXDVB_NO_ERROR      0
 #define cERR_LINUXDVB_ERROR        -1
 
-static const char VIDEODEV[] = "/dev/dvb/adapter0/video0";
-static const char AUDIODEV[] = "/dev/dvb/adapter0/audio0";
+#define ACCESS(check, onfail) \
+        ({ \
+			char *ret; \
+			if (access(check, F_OK) != -1) \
+				ret = check; \
+			else \
+				ret = onfail; \
+			ret; \
+        })
+
+#define VIDEODEV ACCESS("/dev/dvb/adapter0/video0", "/dev/player/video0")
+#define AUDIODEV ACCESS("/dev/dvb/adapter0/audio0", "/dev/player/audio0")
 
 static int videofd 	= -1;
 static int audiofd 	= -1;
@@ -168,7 +178,7 @@ int LinuxDvbOpen(Context_t  *context __attribute__((unused)), char *type)
             return cERR_LINUXDVB_ERROR;
         }
  
-        if (ioctl( videofd, VIDEO_CLEAR_BUFFER) == -1)
+        if (GetSTBType() != STB_HISILICON && ioctl( videofd, VIDEO_CLEAR_BUFFER) == -1)
         {
             linuxdvb_err("VIDEO_CLEAR_BUFFER: ERROR %d, %s\n", errno, strerror(errno));
         }
@@ -196,7 +206,7 @@ int LinuxDvbOpen(Context_t  *context __attribute__((unused)), char *type)
             return cERR_LINUXDVB_ERROR;
         }
 
-        if (ioctl( audiofd, AUDIO_CLEAR_BUFFER) == -1)
+        if (GetSTBType() != STB_HISILICON && ioctl( audiofd, AUDIO_CLEAR_BUFFER) == -1)
         {
             linuxdvb_err("AUDIO_CLEAR_BUFFER: ERROR %d, %s\n", errno, strerror(errno));
         }
@@ -527,7 +537,7 @@ int LinuxDvbAVSync(Context_t  *context, char *type __attribute__((unused))) {
     if (audiofd != -1) {
         getLinuxDVBMutex();
 
-        if (ioctl(audiofd, AUDIO_SET_AV_SYNC, 0) == -1) //context->playback->AVSync) == -1)
+        if (ioctl(audiofd, AUDIO_SET_AV_SYNC, GetSTBType() != STB_HISILICON ? 0 : 1) == -1) //context->playback->AVSync) == -1)
         {
             linuxdvb_err("AUDIO_SET_AV_SYNC: ERROR %d, %s\n", errno, strerror(errno));
             ret = cERR_LINUXDVB_ERROR;
